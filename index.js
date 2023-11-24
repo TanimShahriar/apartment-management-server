@@ -31,6 +31,7 @@ async function run() {
 
 
     const apartmentCollection = client.db('hillApartment').collection('apartments')
+    const agreementCollection = client.db('hillApartment').collection('agreement')
 
 
 
@@ -91,6 +92,15 @@ async function run() {
     //   const result = await cursor.toArray();
     //   res.send(result);
     // })
+
+
+    //agreement related
+    app.post("/agree", async (req, res) => {
+      const newAssignment = req.body;
+      console.log(newAssignment);
+      const result = await agreementCollection.insertOne(newAssignment);
+      res.send(result);
+    })
 
     //cart related api
 
