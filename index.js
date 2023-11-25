@@ -110,15 +110,17 @@ async function run() {
 
     //agreement related
     app.get("/agreement", async (req, res) => {
-      const result = await agreementCollection.find().toArray();
+      const email = req.query.email;
+      const query = { email: email };
+      const result = await agreementCollection.find(query).toArray();
       res.send(result);
     })
 
 
     app.post("/agreement", async (req, res) => {
-      const newAssignment = req.body;
-      console.log(newAssignment);
-      const result = await agreementCollection.insertOne(newAssignment);
+      const data = req.body;
+      console.log(data);
+      const result = await agreementCollection.insertOne(data);
       res.send(result);
     })
 
