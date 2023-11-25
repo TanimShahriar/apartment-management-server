@@ -32,7 +32,7 @@ async function run() {
 
     const apartmentCollection = client.db('hillApartment').collection('apartments')
     const agreementCollection = client.db('hillApartment').collection('agreement')
-    const userCollection = client.db('bistroBoss').collection('users')
+    const userCollection = client.db('hillApartment').collection('users')
 
 
 
@@ -115,7 +115,7 @@ async function run() {
     })
 
 
-    app.post("/agree", async (req, res) => {
+    app.post("/agreement", async (req, res) => {
       const newAssignment = req.body;
       console.log(newAssignment);
       const result = await agreementCollection.insertOne(newAssignment);
