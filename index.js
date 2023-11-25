@@ -32,6 +32,7 @@ async function run() {
 
     const apartmentCollection = client.db('hillApartment').collection('apartments')
     const agreementCollection = client.db('hillApartment').collection('agreement')
+    const userCollection = client.db('bistroBoss').collection('users')
 
 
 
@@ -78,6 +79,19 @@ async function run() {
 
     //user related api
 
+    app.post("/users", async (req, res) => {
+      const user = req.body;
+      //insert email if user doesn't exist
+      //we can do this in many ways (1. unique email, 2. upsert, 3. checking if email exist)
+      const query = { email: user.email }
+      const isExist = await userCollection.findOne(query);
+      if (isExist) {
+        return res.send({ message: "User already exist", insertedId: null })
+      }
+      const result = await userCollection.insertOne(user);
+      res.send(result)
+    })
+
 
 
     //menu related api
@@ -95,6 +109,12 @@ async function run() {
 
 
     //agreement related
+    app.get("/agreement", async (req, res) => {
+      const result = await agreementCollection.find().toArray();
+      res.send(result);
+    })
+
+
     app.post("/agree", async (req, res) => {
       const newAssignment = req.body;
       console.log(newAssignment);
