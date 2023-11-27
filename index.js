@@ -33,6 +33,8 @@ async function run() {
     const apartmentCollection = client.db('hillApartment').collection('apartments')
     const agreementCollection = client.db('hillApartment').collection('agreement')
     const userCollection = client.db('hillApartment').collection('users')
+    const memberCollection = client.db('hillApartment').collection('members')
+    const rejectUserCollection = client.db('hillApartment').collection('rejectedUsers')
 
 
 
@@ -75,9 +77,44 @@ async function run() {
       }
       next();
     }
+    //use verify member after verify token
+    const verifyMember = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      const isAdmin = user?.role === "admin";
+      if (!isAdmin) {
+        return res.status(403).send({ message: "Forbidden access" })
+      }
+      next();
+    }
 
 
     //user related api
+
+
+    app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
+      const cursor = userCollection.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    })
+
+
+
+    app.get("/users/admin/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      if (email !== req.decoded.email) {
+        return res.status(403).send({ message: "forbidden access" })
+      }
+      const query = { email: email };
+      const user = await userCollection.findOne(query)
+      let admin = false;
+      if (user) {
+        admin = user?.role === "admin"
+      }
+      res.send({ admin })
+    })
+
 
     app.post("/users", async (req, res) => {
       const user = req.body;
@@ -94,27 +131,51 @@ async function run() {
 
 
 
-    //menu related api
+    app.patch("/users/admin/:id", verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) }
+      const updatedDoc = {
+        $set: {
+          role: "admin",
+        }
+      }
+      const result = await userCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    })
+
+
+    app.delete("/users/:id", verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await userCollection.deleteOne(query);
+      res.send(result);
+    })
+
+
+
+    //apartments related api
     app.get("/apartments", async (req, res) => {
       const cursor = apartmentCollection.find();
       const result = await cursor.toArray();
       res.send(result);
     })
 
-    // app.get("/review", async (req, res) => {
-    //   const cursor = reviewCollection.find();
-    //   const result = await cursor.toArray();
-    //   res.send(result);
-    // })
 
 
     //agreement related
     app.get("/agreement", async (req, res) => {
       const email = req.query.email;
-      const query = { email: email };
-      const result = await agreementCollection.find(query).toArray();
+      // const query = { email: email };
+      const result = await agreementCollection.find().toArray();
       res.send(result);
     })
+
+    // app.get("/agreement", async (req, res) => {
+    //   const cursor = agreementCollection.find();
+    //   const result = await cursor.toArray();
+    //   res.send(result);
+    // })
+
 
 
     app.post("/agreement", async (req, res) => {
@@ -123,6 +184,53 @@ async function run() {
       const result = await agreementCollection.insertOne(data);
       res.send(result);
     })
+
+
+
+
+    app.delete("/agreement/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await agreementCollection.deleteOne(query);
+      res.send(result);
+    })
+
+
+    //member related api
+    app.post("/members", async (req, res) => {
+      const data = req.body;
+      console.log(data);
+      const result = await memberCollection.insertOne(data);
+      res.send(result);
+    })
+
+    app.get("/members", async (req, res) => {
+      const cursor = memberCollection.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    })
+
+
+
+
+    //rejected user collection
+
+    app.post("/rejectedUsers", async (req, res) => {
+      const data = req.body;
+      console.log(data);
+      const result = await rejectUserCollection.insertOne(data);
+      res.send(result);
+    })
+
+    app.get("/rejectedUsers", async (req, res) => {
+      const cursor = rejectUserCollection.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    })
+
+
+
+
 
     //cart related api
 
