@@ -3,6 +3,7 @@ const app = express();
 const cors = require('cors');
 const jwt = require("jsonwebtoken")
 require('dotenv').config()
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
 //middleware
@@ -35,6 +36,9 @@ async function run() {
     const userCollection = client.db('hillApartment').collection('users')
     const memberCollection = client.db('hillApartment').collection('members')
     const rejectUserCollection = client.db('hillApartment').collection('rejectedUsers')
+    const announcementCollection = client.db('hillApartment').collection('adminAnnouncement')
+    const paymenttCollection = client.db('hillApartment').collection('create-payment-intent')
+    const paymentCollection = client.db('hillApartment').collection('payments')
 
 
 
@@ -82,8 +86,19 @@ async function run() {
       const email = req.decoded.email;
       const query = { email: email };
       const user = await userCollection.findOne(query);
-      const isAdmin = user?.role === "admin";
-      if (!isAdmin) {
+      const isMember = user?.role === "member";
+      if (!isMember) {
+        return res.status(403).send({ message: "Forbidden access" })
+      }
+      next();
+    }
+
+    const verifyUser = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      const isUser = user?.role === "user";
+      if (!isUser) {
         return res.status(403).send({ message: "Forbidden access" })
       }
       next();
@@ -113,6 +128,34 @@ async function run() {
         admin = user?.role === "admin"
       }
       res.send({ admin })
+    })
+
+    app.get("/users/member/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      if (email !== req.decoded.email) {
+        return res.status(403).send({ message: "forbidden access" })
+      }
+      const query = { email: email };
+      const user = await userCollection.findOne(query)
+      let members = false;
+      if (user) {
+        members = user?.role === "member"
+      }
+      res.send({ members })
+    })
+
+    app.get("/users/user/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      if (email !== req.decoded.email) {
+        return res.status(403).send({ message: "forbidden access" })
+      }
+      const query = { email: email };
+      const user = await userCollection.findOne(query)
+      let users = false;
+      if (user) {
+        users = user?.role == "user"
+      }
+      res.send({ users })
     })
 
 
@@ -153,12 +196,38 @@ async function run() {
 
 
 
+    app.put("/users/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) }
+      const options = { upsert: true };
+      const updatedUsers = req.body;
+      const usersRole = {
+        $set: {
+          role: updatedUsers.role
+        }
+      }
+
+      const result = await userCollection.updateOne(filter, usersRole, options);
+      res.send(result);
+    })
+
+
     //apartments related api
-    app.get("/apartments", async (req, res) => {
+    app.get("/apartments", verifyToken, async (req, res) => {
       const cursor = apartmentCollection.find();
       const result = await cursor.toArray();
       res.send(result);
     })
+
+
+    app.delete("/apartments/:apartmentNo", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await apartmentCollection.deleteOne(query);
+      res.send(result);
+    })
+
+
 
 
 
@@ -170,11 +239,7 @@ async function run() {
       res.send(result);
     })
 
-    // app.get("/agreement", async (req, res) => {
-    //   const cursor = agreementCollection.find();
-    //   const result = await cursor.toArray();
-    //   res.send(result);
-    // })
+
 
 
 
@@ -184,7 +249,6 @@ async function run() {
       const result = await agreementCollection.insertOne(data);
       res.send(result);
     })
-
 
 
 
@@ -230,9 +294,57 @@ async function run() {
 
 
 
+    //announcement collection
+    app.post("/adminAnnouncement", async (req, res) => {
+      const data = req.body;
+      console.log(data);
+      const result = await announcementCollection.insertOne(data);
+      res.send(result);
+    })
+
+    app.get("/adminAnnouncement", async (req, res) => {
+      const cursor = announcementCollection.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    })
+
+    //payment related code
+
+    app.post('/create-payment-intent', async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100);
+      console.log(amount, 'amount inside the intent')
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: 'usd',
+        payment_method_types: ['card']
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret
+      })
+    });
+
+    app.post("/payments", async (req, res) => {
+      const payment = req.body;
+      const paymentResult = await paymentCollection.insertOne(payment);
 
 
-    //cart related api
+      //delete data
+      console.log("Payment info", payment)
+      const query = {
+        _id: {
+          $in: payment.agreementIds.map(id => new ObjectId(id))
+        }
+      }
+      const deleteResult = await memberCollection.deleteOne(query);
+      res.send({ paymentResult, deleteResult });
+    })
+
+
+
+
 
 
 
