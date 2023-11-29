@@ -39,6 +39,7 @@ async function run() {
     const announcementCollection = client.db('hillApartment').collection('adminAnnouncement')
     const paymenttCollection = client.db('hillApartment').collection('create-payment-intent')
     const paymentCollection = client.db('hillApartment').collection('payments')
+    const couponCollection = client.db('hillApartment').collection('coupons')
 
 
 
@@ -274,6 +275,14 @@ async function run() {
       res.send(result);
     })
 
+    app.delete("/members/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await memberCollection.deleteOne(query);
+      res.send(result);
+    })
+
+
 
 
 
@@ -342,8 +351,32 @@ async function run() {
       res.send({ paymentResult, deleteResult });
     })
 
+    app.get("/payments", async (req, res) => {
+      const cursor = paymentCollection.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    })
+
+    app.get("/payments/:id", async (req, res) => {
+      const cursor = paymentCollection.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    })
 
 
+    //coupons related api
+    app.post("/coupons", async (req, res) => {
+      const data = req.body;
+      console.log(data);
+      const result = await couponCollection.insertOne(data);
+      res.send(result);
+    })
+
+    app.get("/coupons", async (req, res) => {
+      const cursor = couponCollection.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    })
 
 
 
